@@ -1,0 +1,5 @@
+{
+  "name": "Lavanya Emart Inventory",
+  "description": "Enterprise Stock Verification System with Staff and Supervisor modes, featuring offline sync capabilities and real-time conflict resolution.",
+  "requestFramePermissions": []
+}
