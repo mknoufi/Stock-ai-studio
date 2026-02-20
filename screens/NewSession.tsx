@@ -9,16 +9,25 @@ const NewSession: React.FC = () => {
     const { startSession, isLoading, error, clearError } = useStock();
     const { showToast } = useToast();
     const [selectedLocation, setSelectedLocation] = useState('Showroom');
+    const [selectedFloor, setSelectedFloor] = useState<string>('Ground');
+    const [enteredRack, setEnteredRack] = useState('');
 
     const handleStart = async () => {
+        if (!selectedFloor || !enteredRack) {
+             showToast('Please select a floor and enter a rack number', 'warning');
+             return;
+        }
+
         try {
-            await startSession(selectedLocation, '1st Floor', 'A-102');
-            showToast(`Session started at ${selectedLocation}`, 'success');
+            await startSession(selectedLocation, selectedFloor, enteredRack);
+            showToast(`Session started at ${selectedLocation} - Rack ${enteredRack}`, 'success');
             navigate('/staff/dashboard');
         } catch (e) {
             showToast('Failed to start session', 'error');
         }
     };
+
+    const floors = ['Basement', 'Ground', '1st Floor', '2nd Floor', '3rd Floor'];
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
@@ -63,16 +72,16 @@ const NewSession: React.FC = () => {
                     <div className="px-6 py-6">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex-1 flex flex-col gap-2">
-                                <div className="h-1.5 w-full bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Location</span>
+                                <div className={`h-1.5 w-full rounded-full transition-colors ${selectedLocation ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-800'}`}></div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedLocation ? 'text-blue-500' : 'text-slate-600'}`}>Location</span>
                             </div>
                             <div className="flex-1 flex flex-col gap-2">
-                                <div className="h-1.5 w-full bg-slate-800 rounded-full"></div>
-                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Floor</span>
+                                <div className={`h-1.5 w-full rounded-full transition-colors ${selectedFloor ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-800'}`}></div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedFloor ? 'text-blue-500' : 'text-slate-600'}`}>Floor</span>
                             </div>
                             <div className="flex-1 flex flex-col gap-2">
-                                <div className="h-1.5 w-full bg-slate-800 rounded-full"></div>
-                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Rack</span>
+                                <div className={`h-1.5 w-full rounded-full transition-colors ${enteredRack ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-800'}`}></div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${enteredRack ? 'text-blue-500' : 'text-slate-600'}`}>Rack</span>
                             </div>
                         </div>
                     </div>
@@ -139,27 +148,50 @@ const NewSession: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* Collapsed steps */}
-                        <section className="mt-8 opacity-40">
+                        <section className="mt-8">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-slate-500">2. Select Floor</h3>
-                                <span className="material-symbols-outlined text-slate-600">lock</span>
+                                <h3 className="text-lg font-semibold text-slate-100">2. Select Floor</h3>
+                                {selectedFloor && <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded uppercase tracking-wider border border-blue-500/20">{selectedFloor}</span>}
                             </div>
-                            <div className="flex gap-3">
-                                <div className="flex-1 h-14 bg-slate-800/50 rounded-xl border border-slate-800 flex items-center justify-center font-bold text-slate-600">G</div>
-                                <div className="flex-1 h-14 bg-slate-800/50 rounded-xl border border-slate-800 flex items-center justify-center font-bold text-slate-600">1</div>
-                                <div className="flex-1 h-14 bg-slate-800/50 rounded-xl border border-slate-800 flex items-center justify-center font-bold text-slate-600">2</div>
+                            <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+                                {floors.map((floor) => (
+                                    <button
+                                        key={floor}
+                                        onClick={() => setSelectedFloor(floor)}
+                                        className={`flex-none px-6 h-14 rounded-xl border font-bold text-sm whitespace-nowrap transition-all ${
+                                            selectedFloor === floor
+                                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                                : 'bg-slate-800/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        {floor}
+                                    </button>
+                                ))}
                             </div>
                         </section>
 
-                        <section className="mt-8 opacity-40">
+                        <section className="mt-8">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-slate-500">3. Select Rack</h3>
-                                <span className="material-symbols-outlined text-slate-600">lock</span>
+                                <h3 className="text-lg font-semibold text-slate-100">3. Enter Rack ID</h3>
+                                {enteredRack && <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded uppercase tracking-wider border border-green-500/20">Valid</span>}
                             </div>
-                            <div className="h-14 bg-slate-800/50 border border-slate-800 rounded-2xl flex items-center px-4 gap-3">
-                                <span className="material-symbols-outlined text-slate-600">search</span>
-                                <div className="h-2 w-32 bg-slate-700 rounded-full"></div>
+                            <div className="relative group">
+                                <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${enteredRack ? 'text-blue-500' : 'text-slate-600 group-focus-within:text-blue-400'}`}>grid_4x4</span>
+                                <input
+                                    type="text"
+                                    value={enteredRack}
+                                    onChange={(e) => setEnteredRack(e.target.value.toUpperCase())}
+                                    placeholder="Scan or Type Rack Number (e.g. A-101)"
+                                    className="w-full h-14 bg-slate-800/50 border-2 border-slate-800 rounded-2xl pl-12 pr-4 text-white font-mono font-bold placeholder:font-sans placeholder:font-normal placeholder:text-slate-600 focus:border-blue-500 focus:bg-slate-800/80 focus:ring-0 transition-all uppercase"
+                                />
+                                {enteredRack && (
+                                    <button
+                                        onClick={() => setEnteredRack('')}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                                    >
+                                        <span className="material-symbols-outlined text-lg">cancel</span>
+                                    </button>
+                                )}
                             </div>
                         </section>
 
@@ -177,7 +209,11 @@ const NewSession: React.FC = () => {
                     {/* Footer Actions */}
                     <div className="absolute bottom-0 left-0 right-0 p-6 bg-slate-900/90 ios-blur border-t border-slate-800">
                         <div className="flex flex-col gap-3">
-                            <button onClick={handleStart} disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button
+                                onClick={handleStart}
+                                disabled={isLoading || !selectedFloor || !enteredRack}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+                            >
                                 {isLoading ? (
                                     <span className="flex items-center gap-2">
                                         <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
@@ -185,8 +221,8 @@ const NewSession: React.FC = () => {
                                     </span>
                                 ) : (
                                     <>
-                                        <span>Continue to Floor</span>
-                                        <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                                        <span>Start Session</span>
+                                        <span className="material-symbols-outlined text-[20px]">play_arrow</span>
                                     </>
                                 )}
                             </button>

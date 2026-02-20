@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HealthStrip } from '../components/HealthStrip';
 import { useStock } from '../contexts/StockContext';
@@ -9,15 +9,24 @@ const ConflictResolution: React.FC = () => {
     const navigate = useNavigate();
     const { conflicts, resolveConflict, isLoading, error, clearError } = useStock();
     const { showToast } = useToast();
+    const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Just show the first conflict for resolution flow in this prototype
-    const currentConflict = conflicts[0];
+    useEffect(() => {
+        if (currentIndex >= conflicts.length && conflicts.length > 0) {
+            setCurrentIndex(conflicts.length - 1);
+        } else if (conflicts.length === 0) {
+            setCurrentIndex(0);
+        }
+    }, [conflicts.length, currentIndex]);
+
+    const currentConflict = conflicts[currentIndex];
 
     const handleResolve = async (resolution: 'local' | 'server') => {
         if (!currentConflict) return;
         try {
             await resolveConflict(currentConflict.id, resolution);
             showToast(`Resolved using ${resolution} data`, 'success');
+            // Index adjustment handled by useEffect
         } catch (e) {
             showToast('Resolution failed', 'error');
         }
@@ -76,6 +85,31 @@ const ConflictResolution: React.FC = () => {
                          <p className="text-[10px] text-red-600 dark:text-red-400">Local data differs from server state.</p>
                      </div>
                 </div>
+
+                {/* Navigation Controls (If multiple) */}
+                {conflicts.length > 1 && (
+                    <div className="flex items-center justify-between mb-4 px-1">
+                         <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                             Item {currentIndex + 1} of {conflicts.length}
+                         </span>
+                         <div className="flex gap-2">
+                             <button
+                                disabled={currentIndex === 0}
+                                onClick={() => setCurrentIndex(i => i - 1)}
+                                className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                             >
+                                <span className="material-symbols-outlined text-lg">chevron_left</span>
+                             </button>
+                             <button
+                                disabled={currentIndex === conflicts.length - 1}
+                                onClick={() => setCurrentIndex(i => i + 1)}
+                                className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                             >
+                                <span className="material-symbols-outlined text-lg">chevron_right</span>
+                             </button>
+                         </div>
+                    </div>
+                )}
 
                 {/* Detail View / Header (Merged for Dark Mode) */}
                 <div className="pb-4 dark:mb-6 dark:bg-dark-card/50 dark:border dark:border-dark-border dark:p-4 dark:rounded-2xl">
