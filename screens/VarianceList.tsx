@@ -7,9 +7,16 @@ import { ErrorState, EmptyState } from '../components/UIStates';
 
 const VarianceList: React.FC = () => {
     const navigate = useNavigate();
-    const { variances, approveVariance, assignRecount, isLoading, error, clearError } = useStock();
+    const { variances, approveVariance, assignRecount, isLoading, error, clearError, user } = useStock();
     const { showToast } = useToast();
     const [assignModalOpen, setAssignModalOpen] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (user && !['supervisor', 'admin'].includes(user.role)) {
+            showToast('Access Denied: Supervisor privileges required', 'error');
+            navigate('/');
+        }
+    }, [user, navigate, showToast]);
 
     // Mock Staff List
     const staffMembers = ['Rahul Staff', 'Anita Roy', 'John Doe'];

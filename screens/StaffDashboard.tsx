@@ -40,6 +40,9 @@ const StaffDashboard: React.FC = () => {
     });
 
     const handleScan = async () => {
+        // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(50);
+        
         // Simulation of a barcode scan event
         const mockSku = `SKU-100${Math.floor(Math.random() * 5)}`;
         // Check if item exists
@@ -81,12 +84,18 @@ const StaffDashboard: React.FC = () => {
             <header className="bg-white dark:bg-slate-900 border-b border-primary/10 dark:border-slate-800 px-4 pt-4 pb-2 shrink-0 z-10">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
+                        <button onClick={() => navigate('/')} className="p-1 -ml-1 text-slate-400 hover:text-red-500 transition-colors" title="Logout">
+                            <span className="material-symbols-outlined">logout</span>
+                        </button>
                         <span className="material-symbols-outlined text-primary dark:text-blue-500 text-2xl">verified_user</span>
                         <div>
                           <h1 className="text-sm font-black tracking-tight uppercase dark:text-white leading-none">Audit: SID-{activeSession.id.substring(0,6)}</h1>
                           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Rack: {activeSession.rack}</p>
                         </div>
                     </div>
+                    <button onClick={() => navigate('/staff/audit-log')} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-primary dark:hover:text-white transition-colors" title="Audit Log">
+                        <span className="material-symbols-outlined text-[20px]">history</span>
+                    </button>
                     <button onClick={() => navigate('/staff/summary')} className="px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-lg active:scale-95 transition-transform">
                         Finish
                     </button>
@@ -211,7 +220,14 @@ const StaffDashboard: React.FC = () => {
                                             <span className="text-[10px] font-black uppercase text-orange-600 bg-orange-100 dark:bg-orange-500/20 dark:text-orange-400 px-1.5 py-0.5 rounded">Recount</span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-slate-500 font-mono mt-0.5">{item.sku}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-xs text-slate-500 font-mono">{item.sku}</p>
+                                        {item.mrp > 5000 && (
+                                            <span className="text-[8px] font-black uppercase text-purple-600 bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                                                High Value
+                                            </span>
+                                        )}
+                                    </div>
                                     
                                     <div className="mt-2 flex items-center justify-between">
                                         <div className="flex items-center gap-4 text-xs">

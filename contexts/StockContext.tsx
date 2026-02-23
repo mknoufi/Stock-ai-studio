@@ -17,6 +17,15 @@ interface Session {
   snapshotHash: string;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  user: string;
+  action: string;
+  details: string;
+  sku?: string;
+}
+
 interface StockContextType {
   user: User | null;
   activeSession: Session | null;
@@ -25,6 +34,7 @@ interface StockContextType {
   conflicts: ConflictItem[];
   notifications: Notification[];
   queue: Mutation[];
+  auditLog: AuditLogEntry[];
   isLoading: boolean;
   error: string | null;
   isOffline: boolean;
@@ -41,6 +51,7 @@ interface StockContextType {
   assignRecount: (sku: string, staffName: string) => Promise<void>;
   markNotificationRead: (id: string) => void;
   adminAction: (action: string) => Promise<void>;
+  addBatch: (sku: string, batch: BatchEntry) => Promise<void>;
   clearError: () => void;
   toggleConnectivity: () => void;
 }
@@ -57,6 +68,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [queue, setQueue] = useState<Mutation[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +76,18 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearError = () => setError(null);
   const toggleConnectivity = () => setIsOffline(prev => !prev);
+
+  const addAuditLog = (action: string, details: string, sku?: string) => {
+      const entry: AuditLogEntry = {
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+          user: user?.name || 'System',
+          action,
+          details,
+          sku
+      };
+      setAuditLog(prev => [entry, ...prev]);
+  };
 
   // Persistence
   useEffect(() => {
@@ -77,6 +101,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (parsed.variances) setVariances(parsed.variances);
             if (parsed.conflicts) setConflicts(parsed.conflicts);
             if (parsed.notifications) setNotifications(parsed.notifications);
+            if (parsed.auditLog) setAuditLog(parsed.auditLog);
             if (parsed.queue) {
                 const recoveredQueue = parsed.queue.map((m: Mutation) => 
                     m.status === 'syncing' ? { ...m, status: 'pending' } : m
@@ -90,9 +115,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    const state = { user, activeSession, items, variances, conflicts, notifications, queue };
+    const state = { user, activeSession, items, variances, conflicts, notifications, queue, auditLog };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [user, activeSession, items, variances, conflicts, notifications, queue]);
+  }, [user, activeSession, items, variances, conflicts, notifications, queue, auditLog]);
 
   // Queue Processor
   useEffect(() => {
@@ -220,6 +245,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const res = await api.startSession({ location, floor, rack, idempotency_key: crypto.randomUUID() });
         setActiveSession({ id: res.session_id, location, floor, rack, startTime: new Date().toISOString(), snapshotHash: res.snapshot_hash });
         setItems(res.items);
+        addAuditLog('SESSION_START', `Started session at ${location} - ${floor} - ${rack}`);
       } catch (e) {
         // MOCK DATA
         const mockItems: StockItem[] = Array.from({ length: 6 }).map((_, i) => {
@@ -282,6 +308,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setActiveSession({ id: 'mock-session-001', location, floor, rack, startTime: new Date().toISOString(), snapshotHash: 'SHA-256-MOCK-HASH' });
         setItems(mockItems);
+        addAuditLog('SESSION_START', `Started session at ${location} - ${floor} - ${rack} (Mock)`);
       } finally {
         setIsLoading(false);
       }
@@ -326,7 +353,8 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: newStatus, 
         observedQty: qty, 
         version: version + 1, 
-        lastUser: user?.name || 'unknown'
+        lastUser: user?.name || 'unknown',
+        timestamp: new Date().toISOString()
       } : item
     ));
 
@@ -351,9 +379,11 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
         // Avoid duplicate variance entries for same SKU
         setVariances(prev => [...prev.filter(v => v.sku !== sku), varianceItem]);
+        addAuditLog('VARIANCE_DETECTED', `Variance of ${qty - currentItem.systemQty} detected for ${sku}`, sku);
     } else {
         // Remove from variances if corrected
         setVariances(prev => prev.filter(v => v.sku !== sku));
+        addAuditLog('VERIFY_SUCCESS', `Verified ${qty} units for ${sku}`, sku);
     }
 
     const mutation: Mutation = {
@@ -427,6 +457,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
          lastPurchaseDocType: ''
      };
      setItems(prev => [newItem, ...prev]);
+     addAuditLog('ITEM_ADD', `Added new item ${cleanSku}`, cleanSku);
      const mutation: Mutation = {
       id: crypto.randomUUID(), 
       type: 'ADD', 
@@ -444,9 +475,11 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoading(true);
     try {
       await api.endSession(activeSession.id);
+      addAuditLog('SESSION_END', `Ended session ${activeSession.id}`);
       setActiveSession(null);
       setItems([]);
     } catch (e) {
+      addAuditLog('SESSION_END_FORCE', `Force ended session due to error`);
       setActiveSession(null);
       setItems([]);
     } finally {
@@ -455,6 +488,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const resolveConflict = async (id: string, resolution: 'local' | 'server') => {
+    if (!user || !['supervisor', 'admin'].includes(user.role)) {
+        throw new Error("PERMISSION_DENIED: Only supervisors and admins can resolve conflicts.");
+    }
     setIsLoading(true);
     const mutation: Mutation = {
       id: crypto.randomUUID(), type: 'RESOLVE', payload: { conflictId: id, resolution },
@@ -466,6 +502,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const approveVariance = async (id: string) => {
+    if (!user || !['supervisor', 'admin'].includes(user.role)) {
+        throw new Error("PERMISSION_DENIED: Only supervisors and admins can approve variances.");
+    }
     setIsLoading(true);
     try {
       await api.approveVariance(id);
@@ -484,6 +523,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // SUPERVISOR: Assign Recount
   const assignRecount = async (sku: string, staffName: string) => {
+      if (!user || !['supervisor', 'admin'].includes(user.role)) {
+          throw new Error("PERMISSION_DENIED: Only supervisors and admins can assign recounts.");
+      }
       // 1. Create Notification for the assigned user (Simulated)
       const newNotif: Notification = {
           id: crypto.randomUUID(),
@@ -519,9 +561,40 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const adminAction = async (action: string) => {
+      if (!user || user.role !== 'admin') {
+          throw new Error("PERMISSION_DENIED: Only admins can perform this action.");
+      }
       setIsLoading(true);
       await new Promise(resolve => setTimeout(resolve, 800));
       setIsLoading(false);
+  };
+
+  const addBatch = async (sku: string, batch: BatchEntry) => {
+      if (!user || !['supervisor', 'admin'].includes(user.role)) {
+          throw new Error("PERMISSION_DENIED: Only supervisors and admins can add batches.");
+      }
+      setItems(prev => prev.map(item => {
+          if (item.sku === sku) {
+              const updatedBatches = [...(item.batches || []), batch];
+              return { ...item, batches: updatedBatches };
+          }
+          return item;
+      }));
+      addAuditLog('BATCH_ADD', `Added batch ${batch.batchNumber} to ${sku}`, sku);
+      
+      // In a real app, you would also send a mutation to the server
+      /*
+      const mutation: Mutation = {
+          id: crypto.randomUUID(),
+          type: 'ADD_BATCH',
+          payload: { sku, batch },
+          idempotencyKey: crypto.randomUUID(),
+          timestamp: Date.now(),
+          status: 'pending',
+          retryCount: 0
+      };
+      setQueue(prev => [...prev, mutation]);
+      */
   };
 
   const getMetrics = () => {
@@ -534,9 +607,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StockContext.Provider value={{ 
-        user, activeSession, items, variances, conflicts, notifications, queue, isLoading, error, isOffline,
+        user, activeSession, items, variances, conflicts, notifications, queue, auditLog, isLoading, error, isOffline,
         login, logout, startSession, verifyItem, addItem, refreshSingleItem, endSession, getMetrics, 
-        resolveConflict, approveVariance, assignRecount, markNotificationRead, adminAction, clearError, toggleConnectivity 
+        resolveConflict, approveVariance, assignRecount, markNotificationRead, adminAction, addBatch, clearError, toggleConnectivity 
     }}>
       {children}
     </StockContext.Provider>

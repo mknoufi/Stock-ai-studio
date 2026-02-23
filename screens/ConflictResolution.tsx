@@ -7,8 +7,15 @@ import { ErrorState, EmptyState } from '../components/UIStates';
 
 const ConflictResolution: React.FC = () => {
     const navigate = useNavigate();
-    const { conflicts, resolveConflict, isLoading, error, clearError } = useStock();
+    const { conflicts, resolveConflict, isLoading, error, clearError, user } = useStock();
     const { showToast } = useToast();
+
+    React.useEffect(() => {
+        if (user && !['supervisor', 'admin'].includes(user.role)) {
+            showToast('Access Denied: Supervisor privileges required', 'error');
+            navigate('/');
+        }
+    }, [user, navigate, showToast]);
 
     // Just show the first conflict for resolution flow in this prototype
     const currentConflict = conflicts[0];

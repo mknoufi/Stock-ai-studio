@@ -5,7 +5,15 @@ import { useStock } from '../contexts/StockContext';
 
 const SupervisorDashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { variances, conflicts, activeSession } = useStock();
+    const { variances, conflicts, activeSession, user } = useStock();
+    const { showToast } = useToast();
+
+    React.useEffect(() => {
+        if (user && !['supervisor', 'admin'].includes(user.role)) {
+            showToast('Access Denied: Supervisor privileges required', 'error');
+            navigate('/');
+        }
+    }, [user, navigate, showToast]);
 
     return (
         <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen pb-20">
@@ -25,9 +33,14 @@ const SupervisorDashboard: React.FC = () => {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Inventory Governance Mode</p>
                         </div>
                     </div>
-                    <button className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400">
-                        <span className="material-symbols-outlined text-[20px]">notifications</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400">
+                            <span className="material-symbols-outlined text-[20px]">notifications</span>
+                        </button>
+                        <button onClick={() => navigate('/')} className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors" title="Logout">
+                            <span className="material-symbols-outlined text-[20px]">logout</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

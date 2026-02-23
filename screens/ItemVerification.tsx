@@ -28,6 +28,7 @@ const ItemVerification: React.FC = () => {
     // --- Batch Verification State ---
     const [batchCounts, setBatchCounts] = useState<{ [batchId: string]: number }>({});
     const [showZeroBatches, setShowZeroBatches] = useState(false);
+    const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
 
     // --- Reverse Calc State ---
     const [showReverseCalc, setShowReverseCalc] = useState(false);
@@ -125,6 +126,15 @@ const ItemVerification: React.FC = () => {
         }));
     };
 
+    const toggleBatch = (batchId: string) => {
+        setExpandedBatches(prev => {
+            const next = new Set(prev);
+            if (next.has(batchId)) next.delete(batchId);
+            else next.add(batchId);
+            return next;
+        });
+    };
+
     const handleAddSplit = () => {
         const val = parseFloat(splitInput);
         if (!isNaN(val) && val > 0) {
@@ -188,6 +198,7 @@ const ItemVerification: React.FC = () => {
 
         setSerialList([...serialList, trimmed]);
         setSerialInput('');
+        if (navigator.vibrate) navigator.vibrate(50);
         // Keep focus for rapid scanning
         setTimeout(() => serialInputRef.current?.focus(), 50);
     };
@@ -322,10 +333,13 @@ const ItemVerification: React.FC = () => {
             });
             
             if (isHighVariance) {
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 showToast('High Variance Recorded - Supervisor Alerted', 'error');
             } else if (variance !== 0 || (isSerialized && serialList.length !== count)) {
+                if (navigator.vibrate) navigator.vibrate(200);
                 showToast('Variance/Partial Data Recorded - Sent for Approval', 'warning');
             } else {
+                if (navigator.vibrate) navigator.vibrate(50);
                 showToast('Item Verified Successfully', 'success');
             }
             navigate(-1);
@@ -348,6 +362,13 @@ const ItemVerification: React.FC = () => {
                         <h1 className="text-lg font-bold leading-tight dark:text-white">{currentItem.name}</h1>
                         <p className="text-xs text-slate-500 font-mono">{currentItem.sku}</p>
                     </div>
+                    <button 
+                        onClick={() => navigate(`/staff/item-detail?sku=${currentItem.sku}`)}
+                        className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        title="View Item Details"
+                    >
+                        <span className="material-symbols-outlined">info</span>
+                    </button>
                 </div>
                 
                 {/* Master Data Strip */}
@@ -427,35 +448,57 @@ const ItemVerification: React.FC = () => {
                         {hasBatches && (
                             <div className="space-y-4">
                                 {currentItem.batches?.filter(b => b.systemQty > 0 || showZeroBatches).map((batch) => (
-                                    <div key={batch.id} className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold dark:text-white">{batch.batchNumber || 'NO BATCH ID'}</p>
-                                            <div className="flex gap-2 text-[10px] text-slate-500 mt-1">
-                                                <span className="bg-slate-100 dark:bg-slate-800 px-1 rounded">MRP: {batch.mrp}</span>
-                                                <span className="bg-slate-100 dark:bg-slate-800 px-1 rounded">Exp: {batch.expiryDate || 'N/A'}</span>
+                                    <div key={batch.id} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                        <div className="flex items-center gap-3 py-3">
+                                            <button 
+                                                onClick={() => toggleBatch(batch.id)}
+                                                className="text-slate-400 hover:text-primary transition-colors"
+                                            >
+                                                <span className={`material-symbols-outlined transition-transform ${expandedBatches.has(batch.id) ? 'rotate-90' : ''}`}>chevron_right</span>
+                                            </button>
+                                            <div className="flex-1" onClick={() => toggleBatch(batch.id)}>
+                                                <p className="text-xs font-bold dark:text-white cursor-pointer">{batch.batchNumber || 'NO BATCH ID'}</p>
                                             </div>
-                                            <p className="text-[9px] text-slate-400 mt-1">ERP: {batch.systemQty}</p>
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => handleBatchCountChange(batch.id, (batchCounts[batch.id] || 0) - 1)}
+                                                    className="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 active:bg-slate-100"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">remove</span>
+                                                </button>
+                                                <input 
+                                                    type="number"
+                                                    value={batchCounts[batch.id] || 0}
+                                                    onChange={(e) => handleBatchCountChange(batch.id, parseInt(e.target.value) || 0)}
+                                                    className="w-16 text-center font-bold bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg py-1 text-lg dark:text-white"
+                                                />
+                                                <button 
+                                                    onClick={() => handleBatchCountChange(batch.id, (batchCounts[batch.id] || 0) + 1)}
+                                                    className="size-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center active:bg-purple-200"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">add</span>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <button 
-                                                onClick={() => handleBatchCountChange(batch.id, (batchCounts[batch.id] || 0) - 1)}
-                                                className="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 active:bg-slate-100"
-                                            >
-                                                <span className="material-symbols-outlined text-sm">remove</span>
-                                            </button>
-                                            <input 
-                                                type="number"
-                                                value={batchCounts[batch.id] || 0}
-                                                onChange={(e) => handleBatchCountChange(batch.id, parseInt(e.target.value) || 0)}
-                                                className="w-16 text-center font-bold bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg py-1 text-lg dark:text-white"
-                                            />
-                                            <button 
-                                                onClick={() => handleBatchCountChange(batch.id, (batchCounts[batch.id] || 0) + 1)}
-                                                className="size-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center active:bg-purple-200"
-                                            >
-                                                <span className="material-symbols-outlined text-sm">add</span>
-                                            </button>
-                                        </div>
+                                        
+                                        {expandedBatches.has(batch.id) && (
+                                            <div className="pl-9 pb-4 pr-2 animate-in slide-in-from-top-1">
+                                                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">MRP</p>
+                                                        <p className="text-xs font-mono font-bold dark:text-slate-200">₹{batch.mrp}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Expiry</p>
+                                                        <p className="text-xs font-mono font-bold dark:text-slate-200">{batch.expiryDate || 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">System Qty</p>
+                                                        <p className="text-xs font-mono font-bold dark:text-slate-200">{batch.systemQty}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 

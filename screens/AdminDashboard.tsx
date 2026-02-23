@@ -8,8 +8,15 @@ import { ErrorState } from '../components/UIStates';
 const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
-    const { adminAction, isLoading, error, clearError } = useStock();
+    const { adminAction, isLoading, error, clearError, user, activeSession } = useStock();
     const [activeTab, setActiveTab] = useState<'overview' | 'health' | 'users' | 'sql' | 'security'>('overview');
+
+    React.useEffect(() => {
+        if (user && user.role !== 'admin') {
+            showToast('Access Denied: Admin privileges required', 'error');
+            navigate('/');
+        }
+    }, [user, navigate, showToast]);
 
     const handleAction = async (action: string, successMsg: string) => {
         try {
@@ -202,7 +209,16 @@ const AdminDashboard: React.FC = () => {
                             </div>
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {[
-                                    { user: 'Rahul Staff', role: 'Staff', device: 'Mobile-01', ip: '192.168.1.101', time: '1h 20m', status: 'Active' },
+                                    // Real Current Session
+                                    ...(user && activeSession ? [{
+                                        user: user.name,
+                                        role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+                                        device: 'Current Device',
+                                        ip: '127.0.0.1',
+                                        time: 'Just now',
+                                        status: 'Active'
+                                    }] : []),
+                                    // Mock Other Sessions
                                     { user: 'Anita Roy', role: 'Supervisor', device: 'Tablet-Pro', ip: '192.168.1.105', time: '45m', status: 'Idle' },
                                     { user: 'System Admin', role: 'Admin', device: 'Desktop-HQ', ip: '192.168.1.50', time: '10m', status: 'Active' },
                                 ].map((session, idx) => (
@@ -212,7 +228,7 @@ const AdminDashboard: React.FC = () => {
                                                 {session.user.charAt(0)}
                                             </div>
                                             <div>
-                                                <p className="text-xs font-bold dark:text-slate-200">{session.user}</p>
+                                                <p className="text-xs font-bold dark:text-slate-200">{session.user} {session.device === 'Current Device' && '(You)'}</p>
                                                 <p className="text-[10px] text-slate-400">{session.role} • {session.device}</p>
                                             </div>
                                         </div>

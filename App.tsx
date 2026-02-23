@@ -13,6 +13,8 @@ import AdminDashboard from './screens/AdminDashboard';
 import SettingsScreen from './screens/SettingsScreen';
 import AboutScreen from './screens/AboutScreen';
 import SessionSummary from './screens/SessionSummary';
+import ItemDetail from './screens/ItemDetail';
+import AuditLogScreen from './screens/AuditLogScreen';
 
 const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -63,6 +65,8 @@ const App: React.FC = () => {
               <Route path="/" element={<LoginScreen />} />
               <Route path="/staff/dashboard" element={<StaffDashboard />} />
               <Route path="/staff/verify" element={<ItemVerification />} />
+              <Route path="/staff/item-detail" element={<ItemDetail />} />
+              <Route path="/staff/audit-log" element={<AuditLogScreen />} />
               <Route path="/staff/new-session" element={<NewSession />} />
               <Route path="/staff/summary" element={<SessionSummary />} />
               <Route path="/supervisor/dashboard" element={<SupervisorDashboard />} />
