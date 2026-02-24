@@ -86,6 +86,7 @@ class StockApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 5000,
     });
 
     // Request Interceptor for Auth and Audit Logging
